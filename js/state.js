@@ -317,26 +317,21 @@ async function loadFromFirestore() {
   }
 
   try {
-    // On nettoie les marqueurs existants
-    points.forEach(p => {
-      if (p.marker && map.hasLayer(p.marker)) {
-        map.removeLayer(p.marker);
-      }
-      if (p.planMarker && p.planMarker.parentNode) {
-        p.planMarker.parentNode.removeChild(p.planMarker);
-      }
-    });
+    console.log('Chargement des points depuis Firestore (fusion avec local)…');
 
-    points = [];
-    deletedPoints = [];
-    let maxId = 0;
+    let maxId = pointIdCounter;
 
-    // Points actifs
+    // --- 1) Points actifs ---
     const snap = await db.collection('points').get();
+
     snap.forEach(doc => {
       const d = doc.data();
       const idNum = typeof d.id === 'number' ? d.id : parseInt(d.id, 10) || 0;
       if (idNum > maxId) maxId = idNum;
+
+      // si le point existe déjà localement, on ne le recrée pas
+      const already = points.find(p => p.id === idNum);
+      if (already) return;
 
       const point = {
         id: idNum,
@@ -345,11 +340,11 @@ async function loadFromFirestore() {
         urgency: d.urgency,
         group: d.group || 'Ne sait pas',
         locationType: d.locationType || 'map',
-        lat: d.lat,
-        lng: d.lng,
-        planIndex: d.planIndex,
-        relX: d.relX,
-        relY: d.relY,
+        lat: d.lat ?? null,
+        lng: d.lng ?? null,
+        planIndex: d.planIndex ?? null,
+        relX: d.relX ?? null,
+        relY: d.relY ?? null,
         createdAt: d.createdAt ? new Date(d.createdAt) : new Date(),
         comments: Array.isArray(d.comments)
           ? d.comments.map(c => ({
@@ -369,12 +364,16 @@ async function loadFromFirestore() {
       points.push(point);
     });
 
-    // Points supprimés (historique)
+    // --- 2) Points supprimés / historique ---
     const snapDel = await db.collection('deletedPoints').get();
+
     snapDel.forEach(doc => {
       const d = doc.data();
       const idNum = typeof d.id === 'number' ? d.id : parseInt(d.id, 10) || 0;
       if (idNum > maxId) maxId = idNum;
+
+      const already = deletedPoints.find(p => p.id === idNum);
+      if (already) return;
 
       deletedPoints.push({
         id: idNum,
@@ -383,11 +382,11 @@ async function loadFromFirestore() {
         urgency: d.urgency,
         group: d.group || 'Ne sait pas',
         locationType: d.locationType || 'map',
-        lat: d.lat,
-        lng: d.lng,
-        planIndex: d.planIndex,
-        relX: d.relX,
-        relY: d.relY,
+        lat: d.lat ?? null,
+        lng: d.lng ?? null,
+        planIndex: d.planIndex ?? null,
+        relX: d.relX ?? null,
+        relY: d.relY ?? null,
         createdAt: d.createdAt ? new Date(d.createdAt) : new Date(),
         deletedAt: d.deletedAt ? new Date(d.deletedAt) : new Date(),
         comments: Array.isArray(d.comments)
@@ -406,8 +405,9 @@ async function loadFromFirestore() {
     });
 
     pointIdCounter = maxId + 1;
-    saveState();
+    saveState(); // on sauvegarde la fusion en local
   } catch (err) {
     console.error('Erreur lors du chargement Firestore', err);
   }
 }
+
