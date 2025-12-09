@@ -1,9 +1,3 @@
-
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyASQ5qGxSLxYZtzOm1CGZcIHL2BhRh719k",
   authDomain: "pont-du-gard-f8ede.firebaseapp.com",
@@ -14,6 +8,8 @@ const firebaseConfig = {
   measurementId: "G-D74DVXV9ZV"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+// Initialise Firebase (via l’objet global "firebase" fourni par les <script> CDN)
+firebase.initializeApp(firebaseConfig);
+
+// Firestore global pour tout le reste du code
+window.db = firebase.firestore();
