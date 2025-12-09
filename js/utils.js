@@ -337,23 +337,23 @@ function changePointGroup(id, newGroup) {
   const p = points.find(pt => pt.id === id);
   if (!p) return;
 
-  // Si rien n'est mis, je repasse à "Ne sait pas"
   p.group = newGroup || 'Ne sait pas';
 
-  // Si le point a un marker Leaflet, je regénère le contenu de la popup
   if (p.marker) {
     p.marker.setPopupContent(buildPopupHtml(p));
   }
-
-  // Si le point est sur un plan, je regénère aussi le popup de plan
   if (p.locationType === 'plan') {
     showPlanPopupForPoint(p);
   }
 
-  // Je mets à jour la liste en bas + les filtres de visibilité
   renderPointsList();
   applyVisibilityFilter();
-
-  // Et je sauvegarde tout ça dans le localStorage
   saveState();
+
+  // 🔄 MAJ Firestore si dispo
+  if (typeof db !== 'undefined') {
+    db.collection('points').doc(String(id)).update({
+      group: p.group
+    }).catch(err => console.error('Erreur Firestore changePointGroup', err));
+  }
 }
