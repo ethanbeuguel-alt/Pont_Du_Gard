@@ -1,7 +1,7 @@
 // points.js - Gestion des listes de points, des actions sur les points et de la création.
 // En gros : tout ce qui concerne l’affichage des points, leur suppression, commentaires, photos, etc.
 
-// ---------- RENDU LISTES (points actifs) ----------
+// ---------- RENDU LISTES (points actifs) ----------c
 
 /**
  * Met à jour la liste des points visibles dans le panneau "Points actuellement sur la carte".
