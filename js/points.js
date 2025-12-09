@@ -409,75 +409,77 @@ function createPoint(title, description, urgency, group, photos) {
   const id = pointIdCounter++;
   const createdAt = new Date();
 
-  const basePointData = {
+  // Base commune à tous les points
+  const basePoint = {
     id,
     title,
     description,
     urgency,
     group,
-    createdAt: createdAt.toISOString(),
+    createdAt,
     comments: [],
     photos: photos || []
   };
 
-  let dataToSave;
+  let point;
 
+  // Si le clic venait d’un plan
   if (pendingLocation.type === 'plan') {
-    dataToSave = {
-      ...basePointData,
+    point = {
+      ...basePoint,
       locationType: 'plan',
       planIndex: pendingLocation.planIndex,
       relX: pendingLocation.relX,
       relY: pendingLocation.relY
     };
   } else {
-    dataToSave = {
-      ...basePointData,
+    // Sinon, c’est un point sur la carte
+    point = {
+      ...basePoint,
       locationType: 'map',
       lat: pendingLocation.lat,
       lng: pendingLocation.lng
     };
   }
 
-  // Si Firestore est dispo → on sauvegarde côté serveur
+  // 🔥 SI FIRESTORE EST PRÉSENT → on enregistre aussi dans la collection "points"
   if (typeof db !== 'undefined') {
-    db.collection('points').doc(String(id)).set(dataToSave)
-      .catch(err => {
-        console.error('Erreur Firestore createPoint', err);
-        alert("Erreur lors de l'enregistrement du point sur le serveur.");
-      });
-  } else {
-    // Fallback ancien comportement local si jamais Firebase n'est pas dispo
-    const point = {
-      id,
-      title,
-      description,
-      urgency,
-      group,
-      createdAt,
-      comments: [],
-      photos: photos || [],
-      ...pendingLocation.type === 'plan'
-        ? {
-            locationType: 'plan',
-            planIndex: pendingLocation.planIndex,
-            relX: pendingLocation.relX,
-            relY: pendingLocation.relY
-          }
-        : {
-            locationType: 'map',
-            lat: pendingLocation.lat,
-            lng: pendingLocation.lng
-          }
+    const dataToSave = {
+      id: point.id,
+      title: point.title,
+      description: point.description,
+      urgency: point.urgency,
+      group: point.group,
+      locationType: point.locationType,
+      lat: point.lat ?? null,
+      lng: point.lng ?? null,
+      planIndex: point.planIndex ?? null,
+      relX: point.relX ?? null,
+      relY: point.relY ?? null,
+      createdAt: createdAt.toISOString(),
+      comments: [], // vide au début
+      photos: (point.photos || []).map(ph => ({
+        name: ph.name,
+        data: ph.data
+      }))
     };
 
-    attachMarkerToPoint(point);
-    points.push(point);
-    renderPointsList();
-    saveState();
-    applyVisibilityFilter();
+    db.collection('points').doc(String(id)).set(dataToSave)
+      .catch(err => {
+        console.error("Erreur Firestore createPoint", err);
+        alert("Erreur lors de l'enregistrement du point sur le serveur.");
+      });
   }
+
+  // ✅ Comportement normal de ton appli (affichage immédiat + localStorage)
+  attachMarkerToPoint(point);
+  points.push(point);
+
+  renderPointsList();
+  saveState();
+  applyVisibilityFilter();
 }
+
 
 
 
