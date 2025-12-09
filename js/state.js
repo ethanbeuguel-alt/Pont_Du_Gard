@@ -386,3 +386,121 @@ function loadState() {
     console.error('Erreur de chargement localStorage', e);
   }
 }
+// ---------- SYNCHRO TEMPS RÉEL AVEC FIRESTORE ----------
+
+function clearAllMarkers() {
+  points.forEach(p => {
+    if (p.marker && map.hasLayer(p.marker)) {
+      map.removeLayer(p.marker);
+    }
+    if (p.planMarker && p.planMarker.parentNode) {
+      p.planMarker.parentNode.removeChild(p.planMarker);
+    }
+  });
+}
+
+/**
+ * Initialise la synchro temps réel avec Firestore.
+ * Tous les utilisateurs voient les mêmes points.
+ */
+function initRealtimeFromFirestore() {
+  if (typeof db === 'undefined') {
+    console.warn('Firebase non initialisé, on reste en mode localStorage.');
+    loadState();
+    renderPointsList();
+    renderDeletedList();
+    applyVisibilityFilter();
+    return;
+  }
+
+  // Points actifs
+  db.collection('points').onSnapshot((snapshot) => {
+    clearAllMarkers();
+    points = [];
+    pointIdCounter = 1;
+
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const createdAt = d.createdAt ? new Date(d.createdAt) : new Date();
+
+      const point = {
+        id: d.id,
+        title: d.title,
+        description: d.description,
+        urgency: d.urgency,
+        group: d.group || 'Ne sait pas',
+        locationType: d.locationType || 'map',
+        lat: d.lat,
+        lng: d.lng,
+        planIndex: d.planIndex,
+        relX: d.relX,
+        relY: d.relY,
+        createdAt,
+        comments: Array.isArray(d.comments)
+          ? d.comments.map(c => ({
+              text: c.text,
+              createdAt: c.createdAt ? new Date(c.createdAt) : new Date()
+            }))
+          : [],
+        photos: Array.isArray(d.photos)
+          ? d.photos.map(ph => ({
+              name: ph.name,
+              data: ph.data
+            }))
+          : []
+      };
+
+      attachMarkerToPoint(point);
+      points.push(point);
+      if (point.id >= pointIdCounter) {
+        pointIdCounter = point.id + 1;
+      }
+    });
+
+    renderPointsList();
+    applyVisibilityFilter();
+    saveState(); // backup local
+  });
+
+  // Points supprimés (historique)
+  db.collection('deletedPoints').onSnapshot((snapshot) => {
+    deletedPoints = [];
+
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const createdAt = d.createdAt ? new Date(d.createdAt) : new Date();
+      const deletedAt = d.deletedAt ? new Date(d.deletedAt) : new Date();
+
+      deletedPoints.push({
+        id: d.id,
+        title: d.title,
+        description: d.description,
+        urgency: d.urgency,
+        group: d.group || 'Ne sait pas',
+        locationType: d.locationType || 'map',
+        lat: d.lat,
+        lng: d.lng,
+        planIndex: d.planIndex,
+        relX: d.relX,
+        relY: d.relY,
+        createdAt,
+        deletedAt,
+        comments: Array.isArray(d.comments)
+          ? d.comments.map(c => ({
+              text: c.text,
+              createdAt: c.createdAt ? new Date(c.createdAt) : new Date()
+            }))
+          : [],
+        photos: Array.isArray(d.photos)
+          ? d.photos.map(ph => ({
+              name: ph.name,
+              data: ph.data
+            }))
+          : []
+      });
+    });
+
+    renderDeletedList();
+    saveState(); // backup local
+  });
+}
