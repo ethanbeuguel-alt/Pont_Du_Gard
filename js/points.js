@@ -261,29 +261,57 @@ function deletePoint(id) {
   if (index === -1) return;
 
   const point = points[index];
+  const deletedAt = new Date();
 
-  // Nettoyage sur la carte Leaflet
-  if (point.marker && map.hasLayer(point.marker)) {
-    map.removeLayer(point.marker);
+  if (typeof db !== 'undefined') {
+    const baseData = {
+      id: point.id,
+      title: point.title,
+      description: point.description,
+      urgency: point.urgency,
+      group: point.group || 'Ne sait pas',
+      locationType: point.locationType || 'map',
+      lat: point.lat,
+      lng: point.lng,
+      planIndex: point.planIndex,
+      relX: point.relX,
+      relY: point.relY,
+      createdAt: point.createdAt.toISOString(),
+      deletedAt: deletedAt.toISOString(),
+      comments: (point.comments || []).map(c => ({
+        text: c.text,
+        createdAt: c.createdAt.toISOString()
+      })),
+      photos: (point.photos || []).map(ph => ({
+        name: ph.name,
+        data: ph.data
+      }))
+    };
+
+    // 1) on ajoute dans la collection des supprimés
+    db.collection('deletedPoints').doc(String(id)).set(baseData)
+      .catch(err => console.error('Erreur Firestore deletedPoints', err));
+
+    // 2) on supprime de la collection des points actifs
+    db.collection('points').doc(String(id)).delete()
+      .catch(err => console.error('Erreur Firestore delete point', err));
+  } else {
+    // Ancien comportement local
+    if (point.marker && map.hasLayer(point.marker)) {
+      map.removeLayer(point.marker);
+    }
+    if (point.planMarker && point.planMarker.parentNode) {
+      point.planMarker.parentNode.removeChild(point.planMarker);
+    }
+    point.deletedAt = deletedAt;
+    deletedPoints.push(point);
+    points.splice(index, 1);
+
+    renderPointsList();
+    renderDeletedList();
+    saveState();
+    hidePlanPopup();
   }
-
-  // Nettoyage sur le plan (si marqueur HTML)
-  if (point.planMarker && point.planMarker.parentNode) {
-    point.planMarker.parentNode.removeChild(point.planMarker);
-  }
-
-  // On marque la date de suppression et on bascule dans l'historique
-  point.deletedAt = new Date();
-  deletedPoints.push(point);
-
-  // On l'enlève de la liste des points actifs
-  points.splice(index, 1);
-
-  // Mise à jour de l'affichage + sauvegarde
-  renderPointsList();
-  renderDeletedList();
-  saveState();
-  hidePlanPopup();
 }
 
 /**
@@ -373,50 +401,76 @@ function createPoint(title, description, urgency, group, photos) {
   const id = pointIdCounter++;
   const createdAt = new Date();
 
-  // Base commune à tous les points
-  const basePoint = {
+  const basePointData = {
     id,
     title,
     description,
     urgency,
     group,
-    createdAt,
+    createdAt: createdAt.toISOString(),
     comments: [],
     photos: photos || []
   };
 
-  let point;
+  let dataToSave;
 
-  // Si le clic venait d’un plan
   if (pendingLocation.type === 'plan') {
-    point = {
-      ...basePoint,
+    dataToSave = {
+      ...basePointData,
       locationType: 'plan',
       planIndex: pendingLocation.planIndex,
       relX: pendingLocation.relX,
       relY: pendingLocation.relY
     };
   } else {
-    // Sinon, c’est un point sur la carte
-    point = {
-      ...basePoint,
+    dataToSave = {
+      ...basePointData,
       locationType: 'map',
       lat: pendingLocation.lat,
       lng: pendingLocation.lng
     };
   }
 
-  // On crée le marqueur correspondant (carte ou plan)
-  attachMarkerToPoint(point);
+  // Si Firestore est dispo → on sauvegarde côté serveur
+  if (typeof db !== 'undefined') {
+    db.collection('points').doc(String(id)).set(dataToSave)
+      .catch(err => {
+        console.error('Erreur Firestore createPoint', err);
+        alert("Erreur lors de l'enregistrement du point sur le serveur.");
+      });
+  } else {
+    // Fallback ancien comportement local si jamais Firebase n'est pas dispo
+    const point = {
+      id,
+      title,
+      description,
+      urgency,
+      group,
+      createdAt,
+      comments: [],
+      photos: photos || [],
+      ...pendingLocation.type === 'plan'
+        ? {
+            locationType: 'plan',
+            planIndex: pendingLocation.planIndex,
+            relX: pendingLocation.relX,
+            relY: pendingLocation.relY
+          }
+        : {
+            locationType: 'map',
+            lat: pendingLocation.lat,
+            lng: pendingLocation.lng
+          }
+    };
 
-  // On ajoute le point à la liste principale
-  points.push(point);
-
-  // On rafraîchit la liste, on sauvegarde et on applique les filtres
-  renderPointsList();
-  saveState();
-  applyVisibilityFilter();
+    attachMarkerToPoint(point);
+    points.push(point);
+    renderPointsList();
+    saveState();
+    applyVisibilityFilter();
+  }
 }
+
 
 
 // ---------- ÉCOUTEURS SUR LA CARTE & LA MODALE ----------
