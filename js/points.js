@@ -1,22 +1,15 @@
-// points.js - Gestion des listes de points, des actions sur les points et de la création.
-// En gros : tout ce qui concerne l’affichage des points, leur suppression, commentaires, photos, etc.
+// points.js - Gestion de l’affichage des points, des actions, et de la création.
 
-// ---------- RENDU LISTES (points actifs) ----------c
+// ---------- LISTE DES POINTS ACTIFS ----------
 
-/**
- * Met à jour la liste des points visibles dans le panneau "Points actuellement sur la carte".
- * Prend en compte : tri, filtres de groupes, temps écoulé, miniatures de photos, etc.
- */
 function renderPointsList() {
   const container = document.getElementById('point-list');
 
-  // Si aucun point, j'affiche juste un message
   if (points.length === 0) {
     container.innerHTML = '<p>Aucun point pour le moment.</p>';
     return;
   }
 
-  // Je récupère l’état de tous les filtres (cases à cocher)
   const showSec = filterSecurite.checked;
   const showNature = filterNature.checked;
   const showRegie = filterRegie.checked;
@@ -31,7 +24,6 @@ function renderPointsList() {
   const showAutre = filterAutre.checked;
   const showUnknown = filterUnknown.checked;
 
-  // Petite fonction interne pour savoir si un groupe doit être affiché ou pas
   function isGroupVisible(group) {
     switch (group) {
       case 'Sécurité':       return showSec;
@@ -51,25 +43,19 @@ function renderPointsList() {
     }
   }
 
-  // Je crée une copie pour trier sans toucher au tableau original
   const sorted = [...points];
 
-  // Tri suivant le critère sélectionné (currentSort)
   if (currentSort === 'urgency') {
-    // D'abord par urgence (du plus urgent au moins urgent), puis par date de création
     sorted.sort((a, b) => {
       const rDiff = urgencyRank(b.urgency) - urgencyRank(a.urgency);
       if (rDiff !== 0) return rDiff;
       return a.createdAt - b.createdAt;
     });
   } else if (currentSort === 'date_desc') {
-    // Plus récents d'abord
     sorted.sort((a, b) => b.createdAt - a.createdAt);
   } else if (currentSort === 'date_asc') {
-    // Depuis le plus longtemps
     sorted.sort((a, b) => a.createdAt - b.createdAt);
   } else if (currentSort === 'group') {
-    // Tri alphabétique par groupe, puis par date
     sorted.sort((a, b) => {
       const gA = (a.group || '').toLowerCase();
       const gB = (b.group || '').toLowerCase();
@@ -79,13 +65,10 @@ function renderPointsList() {
     });
   }
 
-  // Construction du HTML de la liste
   let html = '<ul>';
 
   sorted.forEach(p => {
     const groupRaw = p.group || 'Ne sait pas';
-
-    // Si le groupe du point est filtré, on le saute
     if (!isGroupVisible(groupRaw)) return;
 
     const color = getUrgencyColor(p.urgency);
@@ -98,12 +81,10 @@ function renderPointsList() {
        typeof p.lat === 'number' &&
        typeof p.lng === 'number');
 
-    // Bouton "Y aller" uniquement si le point a des coordonnées GPS
     const goBtnHtml = hasCoords
       ? `<button onclick="goToPoint(${p.id})">Y aller</button>`
       : '';
 
-    // Gestion des miniatures de photos sous le point
     let photosHtml = '';
     if (p.photos && p.photos.length > 0) {
       const thumbs = p.photos.map((ph, idx) =>
@@ -133,13 +114,8 @@ function renderPointsList() {
   container.innerHTML = html;
 }
 
+// ---------- LISTE DES POINTS SUPPRIMÉS ----------
 
-// ---------- RENDU LISTE DES POINTS SUPPRIMÉS (historique) ----------
-
-/**
- * Met à jour la liste "Historique des points supprimés".
- * But : garder une trace de ce qui a été fait, combien de temps ça a duré, etc.
- */
 function renderDeletedList() {
   const container = document.getElementById('deleted-list');
 
@@ -179,27 +155,18 @@ function renderDeletedList() {
   container.innerHTML = html;
 }
 
+// ---------- ACTIONS SUR LES POINTS ----------
 
-// ---------- ACTIONS SUR LES POINTS (voir, supprimer, commenter, etc.) ----------
-
-/**
- * Met le focus sur un point :
- * - soit sur un plan (on change de vue, on surligne le marqueur et on affiche le popup)
- * - soit sur la carte (on centre la carte et on ouvre la popup Leaflet)
- */
 function focusOnPoint(id) {
   const p = points.find(pt => pt.id === id);
   if (!p) return;
 
-  // Cas des points sur plan (image)
   if (p.locationType === 'plan') {
     const idx = typeof p.planIndex === 'number' ? p.planIndex : 0;
 
-    // On passe à la vue plan correspondante
     currentViewIndex = idx + 1;
     updateView();
 
-    // Animation rapide sur le marqueur pour qu’il ressorte visuellement
     if (p.planMarker) {
       p.planMarker.classList.add('plan-marker-highlight');
       setTimeout(() => {
@@ -209,33 +176,24 @@ function focusOnPoint(id) {
       }, 1200);
     }
 
-    // On affiche aussi le popup de plan à côté du marqueur
     showPlanPopupForPoint(p);
 
   } else {
-    // Cas des points sur la carte
-    hidePlanPopup(); // Je ferme le popup plan s'il était ouvert
+    if (typeof hidePlanPopup === 'function') hidePlanPopup();
 
-    // Si on n'est pas sur la vue "carte", on y revient
     if (currentViewIndex !== 0) {
       currentViewIndex = 0;
       updateView();
     }
 
-    // On centre la carte sur le point si on a des coordonnées
     if (typeof p.lat === 'number' && typeof p.lng === 'number') {
       map.setView([p.lat, p.lng], 18);
     }
 
-    // Et on ouvre la popup Leaflet si elle existe
     if (p.marker) p.marker.openPopup();
   }
 }
 
-/**
- * Ouvre un itinéraire Google Maps vers le point choisi (mode piéton).
- * Utilisé depuis le bouton "Y aller".
- */
 function goToPoint(id) {
   const p = points.find(pt => pt.id === id);
   if (!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') {
@@ -243,19 +201,10 @@ function goToPoint(id) {
     return;
   }
 
-  const lat = p.lat;
-  const lng = p.lng;
-
-  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`;
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking`;
   window.open(url, '_blank');
 }
 
-/**
- * Supprime un point :
- * - enlève le marqueur de la carte / du plan
- * - le bascule dans deletedPoints avec une date de suppression
- * - met à jour les listes et sauvegarde
- */
 function deletePoint(id) {
   const index = points.findIndex(pt => pt.id === id);
   if (index === -1) return;
@@ -263,6 +212,24 @@ function deletePoint(id) {
   const point = points[index];
   const deletedAt = new Date();
 
+  // Visuel local : on enlève les marqueurs
+  if (point.marker && map.hasLayer(point.marker)) {
+    map.removeLayer(point.marker);
+  }
+  if (point.planMarker && point.planMarker.parentNode) {
+    point.planMarker.parentNode.removeChild(point.planMarker);
+  }
+
+  point.deletedAt = deletedAt;
+  deletedPoints.push(point);
+  points.splice(index, 1);
+
+  renderPointsList();
+  renderDeletedList();
+  saveState();
+  if (typeof hidePlanPopup === 'function') hidePlanPopup();
+
+  // Synchro Firestore
   if (typeof db !== 'undefined') {
     const baseData = {
       id: point.id,
@@ -271,16 +238,20 @@ function deletePoint(id) {
       urgency: point.urgency,
       group: point.group || 'Ne sait pas',
       locationType: point.locationType || 'map',
-      lat: point.lat,
-      lng: point.lng,
-      planIndex: point.planIndex,
-      relX: point.relX,
-      relY: point.relY,
-      createdAt: point.createdAt.toISOString(),
+      lat: point.lat ?? null,
+      lng: point.lng ?? null,
+      planIndex: point.planIndex ?? null,
+      relX: point.relX ?? null,
+      relY: point.relY ?? null,
+      createdAt: point.createdAt instanceof Date
+        ? point.createdAt.toISOString()
+        : point.createdAt,
       deletedAt: deletedAt.toISOString(),
       comments: (point.comments || []).map(c => ({
         text: c.text,
-        createdAt: c.createdAt.toISOString()
+        createdAt: c.createdAt instanceof Date
+          ? c.createdAt.toISOString()
+          : c.createdAt
       })),
       photos: (point.photos || []).map(ph => ({
         name: ph.name,
@@ -288,36 +259,14 @@ function deletePoint(id) {
       }))
     };
 
-    // 1) on ajoute dans la collection des supprimés
-    db.collection('deletedPoints').doc(String(id)).set(baseData)
+    db.collection('deletedPoints').doc(String(point.id)).set(baseData)
       .catch(err => console.error('Erreur Firestore deletedPoints', err));
 
-    // 2) on supprime de la collection des points actifs
-    db.collection('points').doc(String(id)).delete()
+    db.collection('points').doc(String(point.id)).delete()
       .catch(err => console.error('Erreur Firestore delete point', err));
-  } else {
-    // Ancien comportement local
-    if (point.marker && map.hasLayer(point.marker)) {
-      map.removeLayer(point.marker);
-    }
-    if (point.planMarker && point.planMarker.parentNode) {
-      point.planMarker.parentNode.removeChild(point.planMarker);
-    }
-    point.deletedAt = deletedAt;
-    deletedPoints.push(point);
-    points.splice(index, 1);
-
-    renderPointsList();
-    renderDeletedList();
-    saveState();
-    hidePlanPopup();
   }
 }
 
-/**
- * Ajoute un commentaire à un point (via un simple prompt pour l'instant).
- * Met à jour les popups, la liste et sauvegarde.
- */
 function addComment(id) {
   const p = points.find(pt => pt.id === id);
   if (!p) return;
@@ -345,7 +294,7 @@ function addComment(id) {
   saveState();
 
   if (typeof db !== 'undefined') {
-    db.collection('points').doc(String(id)).update({
+    db.collection('points').doc(String(p.id)).update({
       comments: p.comments.map(c => ({
         text: c.text,
         createdAt: c.createdAt.toISOString()
@@ -354,14 +303,8 @@ function addComment(id) {
   }
 }
 
+// ---------- LECTURE DES PHOTOS ----------
 
-// ---------- LECTURE DES PHOTOS (FileReader) ----------
-
-/**
- * Lit jusqu’à 5 photos depuis un FileList (input type="file") et renvoie
- * un tableau d'objets { name, data } via un callback.
- * data = base64 prêt à être affiché dans un <img>.
- */
 function readPhotosFromInput(fileList, callback) {
   const files = Array.from(fileList || []);
   if (files.length === 0) {
@@ -369,7 +312,6 @@ function readPhotosFromInput(fileList, callback) {
     return;
   }
 
-  // Je limite volontairement à 5 photos pour éviter les abus
   const limitedFiles = files.slice(0, 5);
   let remaining = limitedFiles.length;
   const photos = [];
@@ -395,22 +337,15 @@ function readPhotosFromInput(fileList, callback) {
   });
 }
 
-
 // ---------- CRÉATION DE POINT ----------
 
-/**
- * Crée un point à partir des infos saisies dans la modale
- * + de la position en attente (pendingLocation).
- * Gère les 2 types de localisation : carte (lat/lng) et plan (relX/relY).
- */
 function createPoint(title, description, urgency, group, photos) {
   if (!pendingLocation) return;
 
   const id = pointIdCounter++;
   const createdAt = new Date();
 
-  // Base commune à tous les points
-  const basePoint = {
+  const point = {
     id,
     title,
     description,
@@ -421,28 +356,25 @@ function createPoint(title, description, urgency, group, photos) {
     photos: photos || []
   };
 
-  let point;
-
-  // Si le clic venait d’un plan
   if (pendingLocation.type === 'plan') {
-    point = {
-      ...basePoint,
-      locationType: 'plan',
-      planIndex: pendingLocation.planIndex,
-      relX: pendingLocation.relX,
-      relY: pendingLocation.relY
-    };
+    point.locationType = 'plan';
+    point.planIndex = pendingLocation.planIndex;
+    point.relX = pendingLocation.relX;
+    point.relY = pendingLocation.relY;
   } else {
-    // Sinon, c’est un point sur la carte
-    point = {
-      ...basePoint,
-      locationType: 'map',
-      lat: pendingLocation.lat,
-      lng: pendingLocation.lng
-    };
+    point.locationType = 'map';
+    point.lat = pendingLocation.lat;
+    point.lng = pendingLocation.lng;
   }
 
-  // 🔥 SI FIRESTORE EST PRÉSENT → on enregistre aussi dans la collection "points"
+  // Affichage et stockage local
+  attachMarkerToPoint(point);
+  points.push(point);
+  renderPointsList();
+  saveState();
+  applyVisibilityFilter();
+
+  // Synchro Firestore
   if (typeof db !== 'undefined') {
     const dataToSave = {
       id: point.id,
@@ -457,46 +389,29 @@ function createPoint(title, description, urgency, group, photos) {
       relX: point.relX ?? null,
       relY: point.relY ?? null,
       createdAt: createdAt.toISOString(),
-      comments: [], // vide au début
+      comments: [],
       photos: (point.photos || []).map(ph => ({
         name: ph.name,
         data: ph.data
       }))
     };
 
-    db.collection('points').doc(String(id)).set(dataToSave)
-      .catch(err => {
-        console.error("Erreur Firestore createPoint", err);
-        alert("Erreur lors de l'enregistrement du point sur le serveur.");
-      });
+    db.collection('points').doc(String(point.id)).set(dataToSave)
+      .catch(err => console.error('Erreur Firestore createPoint', err));
   }
-
-  // ✅ Comportement normal de ton appli (affichage immédiat + localStorage)
-  attachMarkerToPoint(point);
-  points.push(point);
-
-  renderPointsList();
-  saveState();
-  applyVisibilityFilter();
 }
 
+// ---------- ÉCOUTEURS CARTE & MODALE ----------
 
-
-
-// ---------- ÉCOUTEURS SUR LA CARTE & LA MODALE ----------
-
-// Clic sur la carte → ouverture de la modale de création de point
 map.on('click', e => {
-  if (currentViewIndex !== 0) return; // sécurité : seulement en vue "carte"
+  if (currentViewIndex !== 0) return;
   openModalForMap(e.latlng);
 });
 
-// Bouton "Annuler" de la modale
 cancelBtn.addEventListener('click', () => {
   closeModal();
 });
 
-// Bouton "Créer" de la modale
 createBtn.addEventListener('click', () => {
   if (!pendingLocation) {
     closeModal();
@@ -513,21 +428,18 @@ createBtn.addEventListener('click', () => {
     return;
   }
 
-  // Lecture éventuelle des photos avant de créer le point
   readPhotosFromInput(photosInput.files, photos => {
     createPoint(title, description, urgency, group, photos);
     closeModal();
   });
 });
 
-// Boutons Export / Import des données
 if (exportBtn) {
   exportBtn.addEventListener('click', exportData);
 }
 
 if (importBtn && importFileInput) {
   importBtn.addEventListener('click', () => {
-    // Je reset la valeur pour pouvoir ré-importer deux fois le même fichier si besoin
     importFileInput.value = '';
     importFileInput.click();
   });
