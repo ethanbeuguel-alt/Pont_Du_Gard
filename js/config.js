@@ -1,3 +1,5 @@
+// js/config.js
+
 const firebaseConfig = {
   apiKey: "AIzaSyASQ5qGxSLxYZtzOm1CGZcIHL2BhRh719k",
   authDomain: "pont-du-gard-f8ede.firebaseapp.com",
@@ -8,8 +10,18 @@ const firebaseConfig = {
   measurementId: "G-D74DVXV9ZV"
 };
 
-// Initialise Firebase (via l’objet global "firebase" fourni par les <script> CDN)
+console.log("CONFIG.JS CHARGÉ");
+
+// 1) vérifier que firebase existe
+console.log("typeof firebase :", typeof firebase);
+
+// 2) vérifier que firestore est bien présent
+console.log("typeof firebase.firestore :", typeof firebase.firestore);
+
+// 3) init Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Firestore global pour tout le reste du code
-window.db = firebase.firestore();
+// 4) créer db
+window.db = firebase.firestore ? firebase.firestore() : undefined;
+
+console.log("DB DÉFINI ?", typeof window.db);
