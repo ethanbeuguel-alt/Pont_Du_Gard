@@ -327,23 +327,31 @@ function addComment(id) {
 
   if (!p.comments) p.comments = [];
 
-  p.comments.push({
+  const newComment = {
     text: text.trim(),
     createdAt: new Date()
-  });
+  };
 
-  // On met à jour la popup Leaflet si le point est sur la carte
+  p.comments.push(newComment);
+
   if (p.marker) {
     p.marker.setPopupContent(buildPopupHtml(p));
   }
-
-  // Et la popup plan si le point est sur un plan
   if (p.locationType === 'plan') {
     showPlanPopupForPoint(p);
   }
 
   renderPointsList();
   saveState();
+
+  if (typeof db !== 'undefined') {
+    db.collection('points').doc(String(id)).update({
+      comments: p.comments.map(c => ({
+        text: c.text,
+        createdAt: c.createdAt.toISOString()
+      }))
+    }).catch(err => console.error('Erreur Firestore addComment', err));
+  }
 }
 
 
