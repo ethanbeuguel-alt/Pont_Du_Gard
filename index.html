@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pont du Gard – Suivi des problèmes</title>
+
+  <!-- Police Google -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap">
+
+  <!-- Feuille de style Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+
+  <link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/map.css">
+</head>
+
+
+<body>
+
+  <!-- -------- EN-TÊTE AVEC LOGO -------- -->
+  <div id="header">
+    <h1 id="header-title"><img src="images/logo_pont_du_gard.jpg" id="logo" alt="Logo Pont du Gard">
+    Pont du Gard – Suivi des problèmes</h1>
+
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button id="recenter-btn">Recentrer</button>
+      <button id="locate-btn">📍 Ma position</button>
+      <button id="locate-add-btn">➕ Point sur ma position</button>
+    </div>
+  </div>
+
+  <!-- -------- CARTE + PLANS + BOUTONS GAUCHE/DROITE -------- -->
+  <div id="view-container">
+    <button id="view-prev-btn" class="view-nav-btn" type="button" title="Vue précédente">◀</button>
+
+    <div id="map-wrapper">
+      <div id="map"></div>
+
+      <!-- 3 plans (étages) -->
+      <div id="plan-view-0" class="plan-view">
+        <img src="plan_batiment_RDC.jpg" class="plan-image" alt="Plan bâtiment - RDC">
+      </div>
+      <div id="plan-view-1" class="plan-view">
+        <img src="plan_batiment_Etage1.jpg" class="plan-image" alt="Plan bâtiment - Étage 1">
+      </div>
+      <div id="plan-view-2" class="plan-view">
+        <img src="plan_batiment_Etage2.jpg" class="plan-image" alt="Plan bâtiment - Étage 2">
+      </div>
+
+      <!-- Popup pour les points sur plans -->
+      <div id="plan-popup">
+        <button id="plan-popup-close" type="button">×</button>
+        <div id="plan-popup-content"></div>
+      </div>
+    </div>
+
+    <button id="view-next-btn" class="view-nav-btn" type="button" title="Vue suivante">▶</button>
+  </div>
+
+  <!-- -------- LISTE DES POINTS -------- -->
+  <div id="points-container">
+    <h2>Points actuellement sur la carte</h2>
+
+    <button id="service-history-btn" type="button">Historique par service</button>
+
+    <div id="points-controls">
+      <div>
+        <label for="sort-select">Trier par :</label>
+        <select id="sort-select">
+          <option value="urgency">Niveau d'urgence (priorité)</option>
+          <option value="date_desc">Date de mise en ligne (plus récents d'abord)</option>
+          <option value="date_asc">Depuis le plus longtemps</option>
+          <option value="group">Groupe d'activité</option>
+        </select>
+      </div>
+
+      <div id="filter-controls">
+        <span>Afficher les groupes :</span>
+
+        <label>
+          <input type="checkbox" id="filter-securite" checked>
+          Sécurité
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-nature" checked>
+          Espace nature
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-regie" checked>
+          Régie
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-proprete" checked>
+          Propreté
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-maintenance" checked>
+          Maintenance
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-culture" checked>
+          Culture
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-accueil" checked>
+          Accueil
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-mediation" checked>
+          Médiation
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-restauration" checked>
+          Restauration
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-boutique" checked>
+          Boutique
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-commercial" checked>
+          Commercial
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-autre" checked>
+          Autre
+        </label>
+
+        <label>
+          <input type="checkbox" id="filter-unknown" checked>
+          Ne sait pas
+        </label>
+        
+      </div>
+    
+      <div>
+        <button id="export-btn" type="button">Exporter les données</button>
+        <button id="import-btn" type="button">Importer des données</button>
+        <input id="import-file-input" type="file" accept="application/json" style="display:none;">
+      </div>
+    </div>
+
+    <div id="point-list"></div>
+  </div>
+
+  <!-- -------- LISTE SUPPRIMÉS -------- -->
+  <div id="history-container">
+    <h2>Historique des points supprimés</h2>
+    <div id="deleted-list"></div>
+  </div>
+
+
+  <!-- -------- OVERLAY HISTORIQUE SERVICE -------- -->
+  <div id="service-history-overlay">
+    <div id="service-history-modal">
+      <div id="service-history-header">
+        <h3 id="service-history-title">Historique par service (7 derniers jours)</h3>
+        <button id="service-history-close" type="button">×</button>
+      </div>
+      <div id="service-history-controls">
+        <span>Service :</span>
+        <select id="service-select">
+          <option value="Sécurité">Sécurité</option>
+          <option value="Espace nature">Espace nature</option>
+          <option value="Régie">Régie</option>
+          <option value="Propreté">Propreté</option>
+          <option value="Maintenance">Maintenance</option>
+          <option value="Culture">Culture</option>
+          <option value="Accueil">Accueil</option>
+          <option value="Médiation">Médiation</option>
+          <option value="Restauration">Restauration</option>
+          <option value="Boutique">Boutique</option>
+          <option value="Commercial">Commercial</option>
+          <option value="Autre">Autre</option>
+          <option value="Ne sait pas">Ne sait pas</option>
+        </select>
+      </div>
+      <div id="service-history-content">
+        <p id="service-history-empty">Aucun point pour ce service sur les 7 derniers jours.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- -------- MODAL CRÉATION POINT -------- -->
+  <div id="modal-overlay">
+    <div id="modal">
+      <h3>Nouveau point</h3>
+
+      <div class="modal-field">
+        <label for="point-title">Titre</label>
+        <input type="text" id="point-title">
+      </div>
+
+      <div class="modal-field">
+        <label for="point-description">Description</label>
+        <textarea id="point-description" rows="3"></textarea>
+      </div>
+
+      <div class="modal-field">
+        <label for="point-urgency">Niveau d'urgence</label>
+        <select id="point-urgency">
+          <option value="peu urgent">Peu urgent</option>
+          <option value="urgent">Urgent</option>
+          <option value="très urgent">Très urgent</option>
+        </select>
+      </div>
+
+      <div class="modal-field">
+        <label for="point-group">Groupe d'activité</label>
+        <select id="point-group">
+          <option value="Sécurité">Sécurité</option>
+          <option value="Espace nature">Espace nature</option>
+          <option value="Régie">Régie</option>
+          <option value="Propreté">Propreté</option>
+          <option value="Maintenance">Maintenance</option>
+          <option value="Culture">Culture</option>
+          <option value="Accueil">Accueil</option>
+          <option value="Médiation">Médiation</option>
+          <option value="Restauration">Restauration</option>
+          <option value="Boutique">Boutique</option>
+          <option value="Commercial">Commercial</option>
+          <option value="Autre">Autre</option>
+          <option value="Ne sait pas">Ne sait pas</option>
+        </select>
+      </div>
+
+      <div class="modal-field">
+        <label for="point-photos">Photos</label>
+        <input type="file" id="point-photos" accept="image/*" multiple>
+      </div>
+
+      <div id="modal-buttons">
+        <button id="cancel-btn">Annuler</button>
+        <button id="create-btn">Créer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- -------- IMAGE VIEWER OVERLAY -------- -->
+  <div id="image-viewer-overlay">
+    <div id="image-viewer">
+      <button id="image-viewer-close">×</button>
+      <img id="image-viewer-img" src="" alt="">
+    </div>
+  </div>
+
+  <!-- -------- SCRIPTS -------- -->
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Script principal -->
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/points.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/pdf.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
+

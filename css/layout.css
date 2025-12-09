@@ -1,0 +1,94 @@
+body {
+  margin: 0;
+  font-family: "Nunito", sans-serif;
+  background: radial-gradient(circle at top, var(--bg-gradient-top) 0, var(--bg-gradient-bottom) 55%);
+  color: var(--text);
+}
+
+/* -------- HEADER AVEC LOGO -------- */
+
+#header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 40px;
+}
+
+#header-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.03em;
+}
+
+#header-title::after {
+  content: "";
+  display: block;
+  width: 120px;
+  height: 3px;
+  border-radius: 999px;
+  margin: 8px 0 0;
+  background: linear-gradient(90deg, #166534, #b45309);
+}
+
+/* -------- BLOCS -------- */
+
+#points-container,
+#history-container {
+  width: 80%;
+  margin: 0 auto 18px auto;
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 14px 16px 10px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border);
+}
+
+#points-container h2,
+#history-container h2 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#points-container h2::before {
+  content: "📝";
+}
+
+#history-container h2::before {
+  content: "📚";
+}
+
+#service-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+/* -------- RESPONSIVE -------- */
+
+#header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+#header-title {
+  font-size: 1.1rem;
+  text-align: left;
+}
+
+#view-container {
+  width: 100%;
+  margin: 8px auto;
+}
+
+#points-container,
+#history-container {
+  width: 100%;
+  margin: 8px auto 12px auto;
+}
